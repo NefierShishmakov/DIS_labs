@@ -1,0 +1,97 @@
+---
+version: "3"
+services:
+  server:
+    build:
+      context: .
+      dockerfile: DockerfileServer
+    environment:
+      - WORKER_COUNT=2
+    ports:
+      - 8080:8080
+    depends_on:
+      rabbitmq:
+        condition: service_healthy
+      mongodb1:
+        condition: service_healthy
+  worker:
+    build:
+      context: .
+      dockerfile: DockerfileWorker
+    depends_on:
+      rabbitmq:
+        condition: service_healthy
+      mongodb1:
+        condition: service_healthy
+  worker2:
+    build:
+      context: .
+      dockerfile: DockerfileWorker
+    depends_on:
+      rabbitmq:
+        condition: service_healthy
+      mongodb1:
+        condition: service_healthy
+  mongodb1:
+    image: mongo:latest
+    command:
+      - --replSet
+      - rs0
+      - --bind_ip_all
+      - --port
+      - "27017"
+    healthcheck:
+      test: echo "try { rs.status() } catch (err) {
+        rs.initiate({_id:'rs0',members:[{_id:0,host:'mongodb1:27017',priority:1},{_id:1,host:'mongodb2:27018',priority:0.5},{_id:2,host:'mongodb3:27019',priority:0.5}]})
+        }" | mongosh --port 27017 --quiet
+      interval: 5s
+      timeout: 20s
+      retries: 20
+    ports:
+      - 27017:27017
+    volumes:
+      - mongo1_data:/data/db
+      - mongo1_config:/data/configdb
+  mongodb2:
+    image: mongo:latest
+    command:
+      - --replSet
+      - rs0
+      - --bind_ip_all
+      - --port
+      - "27018"
+    ports:
+      - 27018:27018
+    volumes:
+      - mongo2_data:/data/db
+      - mongo2_config:/data/configdb
+  mongodb3:
+    image: mongo:latest
+    command:
+      - --replSet
+      - rs0
+      - --bind_ip_all
+      - --port
+      - "27019"
+    ports:
+      - 27019:27019
+    volumes:
+      - mongo3_data:/data/db
+      - mongo3_config:/data/configdb
+  rabbitmq:
+    image: rabbitmq:3-management
+    healthcheck:
+      test: rabbitmq-diagnostics -q ping
+      interval: 30s
+      timeout: 30s
+      retries: 3
+    ports:
+      - 5672:5672
+      - 15672:15672
+volumes:
+  mongo1_data: null
+  mongo2_data: null
+  mongo3_data: null
+  mongo1_config: null
+  mongo2_config: null
+  mongo3_config: null

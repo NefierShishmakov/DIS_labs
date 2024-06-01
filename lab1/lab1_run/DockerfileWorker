@@ -1,0 +1,7 @@
+FROM openjdk:21
+
+WORKDIR /app
+
+COPY worker.jar .
+
+CMD ["java", "-jar", "worker.jar"]
